@@ -190,13 +190,9 @@ task$Pres=as.factor(task$Pres)
 task = makeClassifTask(data = task[,c(1:4)], target = "Pres",
                        positive = "1", coordinates = task[,5:6])
 
-#-----------------------MAP 1 IN WORD DOC!!!!!!!!!!!!!!
 
 
-
-
-
-#-----------------------Binomial (logistic regression)--------------------------
+#-----------------------Binomial--------------------------
 lrnBinomial = makeLearner("classif.binomial",
                           predict.type = "prob",
                           fix.factors.prediction = TRUE)
@@ -214,6 +210,7 @@ cvBinomial = resample(learner = lrnBinomial, task =task,
 
 print(cvBinomial)
 
+
 #plot locations
 plots = createSpatialResamplingPlots(task,resample=cvBinomial,
                                      crs=crs(allEnv),datum=crs(allEnv),color.test = "red",point.size = 1)
@@ -221,7 +218,7 @@ library(cowplot)
 cowplot::plot_grid(plotlist = plots[["Plots"]], ncol = 3, nrow = 2,
                    labels = plots[["Labels"]])
 
-#----------------GRAPH 1 CREATED HERE--------------------
+#GRAPH 1: Random 5-FOLD 
 
 #Carrying out and plotting Binomial spatial cross validation
 sp_cvBinomial = resample(learner = lrnBinomial, task =task,
@@ -230,12 +227,15 @@ sp_cvBinomial = resample(learner = lrnBinomial, task =task,
                          show.info = FALSE)
 
 print(sp_cvBinomial)
+
+#AUC value: 0.7598611
+
 plotsSP = createSpatialResamplingPlots(task,resample=sp_cvBinomial,
                                        crs=crs(allEnv),datum=crs(allEnv),color.test = "red",point.size = 1)
 cowplot::plot_grid(plotlist = plotsSP[["Plots"]], ncol = 3, nrow = 2,
                    labels = plotsSP[["Labels"]])
 
-#--------------------GRAPH 2 CREATED HERE--------------------
+#GRAPH 2: Spatial 5-fold repeated CV
 
 
 #------------------Relationships between covariates and Meles-----------------------
@@ -246,7 +246,7 @@ glm.meles=glm(Pres~broadleaf+urban+elev,binomial(link='logit'),
 prGLM=predict(allEnv,glm.meles,type="response")
 plot(prGLM)
 
-#---------------MAP 2 SHOWING COMBINED COVARIATES AND MELES PREDICTION OCCURANCE---------
+#MAP 1:COMBINED COVARIATES AND MELES PREDICTION OCCURANCE
 
 #INDEPENDANT COVARIANT: broadleaf
 #building new data frame 
@@ -268,7 +268,7 @@ ggplot(glmNew, aes(x = broadleaf, y = fit)) +
               fill = "green", alpha = 0.3) +
   geom_line(data = glmNew, aes(y = fit)) 
 
-#----------------GRAPH 3 SHOWING BROADLEAF---------------
+#GRAPH 3:Broadleaf and badger response curve
 
 
 #INDEPENDANT COVARIANT: Urban
@@ -281,14 +281,14 @@ predUrban = predict(glm.meles, newdata = glmNewUrban, type = "response", se.fit 
 glmNewUrban$fit = predUrban$fit
 glmNewUrban$se = predUrban$se.fit
 
-#Plotting Urabn
+#Plotting Urban
 ggplot(glmNewUrban, aes(x = urban, y = fit)) +
   
   geom_ribbon(data = glmNewUrban, aes(y = fit, ymin = fit - 1.96 * se, ymax = fit + 1.96 * se),
               fill = "red", alpha = 0.3) +
   geom_line(data = glmNewUrban, aes(y = fit)) 
 
-#--------------GRAPH 4 SHOWING URBAN---------
+#GRAPH 4: Urban and badger response curve
 
 #INDEPENDANT COVARIANT:elevation
 #building new data frame 
@@ -307,14 +307,7 @@ ggplot(glmNewElev, aes(x = elev, y = fit)) +
               fill = "blue", alpha = 0.3) +
   geom_line(data = glmNewElev, aes(y = fit)) 
 
-#--------------GRAPH 5 SHOWING ELEVATION---------
-
-
-
-
-
-
-
+#GRAPH 5: Elevation and badger response curve
 
 
 
@@ -336,9 +329,6 @@ plot(allEnv$broadleaf)
 plot(pppmeles,add=T)
 pppmeles=as.ppp(pppmeles)
 
-#------------------MAP 3 CREATED HERE--------------
-
-
 #Rescaling data from m to km
 pppmeles=rescale(pppmeles, 1000)
 broadleafIm=rescale(broadleafIm,1000)
@@ -349,7 +339,7 @@ urbanIm=rescale(urbanIm,1000)
 Kcsr=envelope(pppmeles,Kest,nsim=39,VARIANCE=T,nSD=1,global =TRUE)
 plot(Kcsr,shade=c("hi","lo"),legend=T)
 
-#------------------GRAPH 6 SHOWING THIS MODEL IS CURRENTLY NOT VERY GOOD AT CONVEYING THE DATA----------
+#GRAPH 6: Ripley's K-function
 
 #Using AIC to create a better model 
 ndTry=seq(100,1000,by=100)
@@ -370,53 +360,37 @@ plot(rhohat(pppmeles,elevIm)) #elevation --------------GRAPH 9
 #THRID ORDER POLYNOMIAL TREND
 firstPPMod=ppm(Q~poly(broadleafIm,3)+poly(elevIm,2)+poly(urbanIm,2)+x+y)
 
-
-
-
-
-
-
 #---------------------------diagnostic tests-----------------------
 
 #influenced by spatial dependence.
 firstModEnv=envelope(firstPPMod,Kest,nsim=39,VARIANCE=TRUE,nSD=1,global =TRUE)
 plot(firstModEnv)
 
-#---------------GRAPH 10 SHOWING BETTER THAN BEFORE BUT EXHIBIT SPATIAL CLUSTERING-------------------
-#----------------------------WRITE UP ---- As we can see our initial model results exhibit spatial clustering (values for K outside and higher than the theoretical CSR envelope) for most radii values.
+#GRAPH 10: Spatial randomness
 
 #Thomas process
 thomasMod=kppm(Q~poly(broadleafIm,3)+poly(elevIm,2)+poly(urbanIm,2)+x+y,"Thomas")
 
 #simulate inhomogeneous patterns).
 thomasEnv=envelope(thomasMod,Kinhom,nsim=39,VARIANCE=TRUE,nSD=1,global=TRUE)
-plot(thomasEnv) #------ GRAPH 11 SHOWING:
-#-----------------Our model fits safely within the simulation envelope suggesting that it fits well to an inhomogeneous point pattern and is therefore correctly specified - it is a good approximation of the behaviour of the data.
+plot(thomasEnv)
+
+#GRAPH 11: Thomas process
+
 
 #AUC
-plot(roc(thomasMod)) #GRAPH 12 SHOWING AUC
+plot(roc(thomasMod))
+
+#Graph 12: AUC value for PPM
 
 #Print
 auc.kppm(thomasMod)
-
-
-#printed this:
-#obs      theo 
-#0.8116724 0.8190116 
-
-
-#The roc curve and auc statistic for our model are high, following closely the output that would be expected for a well specified inhomogeneous point process model (“theo” here) and well above the null line (a 50:50 line that represents no ability to discriminate high from low intensity - “roc_null”).
-#So we can see that with a well specified model that incorporates spatial dependence we have achieved a better representation of the data with the point process approach compared to our machine learning techniques.
-#In reality we could carry out much more extensive model tuning for our machine learning (increasing number of iterations in the tuning step) but it’s perhaps unlikely that an auc score comparable to that of the Thomas model would be achieved.
 
 #mapped output
 prPPMod=predict(thomasMod)
 
 plot(prPPMod)
 
-#convert to raster
-plot(rast(prPPMod))
-
-
+#Map 2: Mapped results of PPM
 
 
